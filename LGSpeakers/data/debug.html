@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html><head>
+<title>LG Sound Bar debug</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+
+<script type="text/javascript">
+var consoleLog;
+var host = location.hostname;
+function WebSocketConnect()
+{
+    if ("WebSocket" in window)
+    {
+        // Let us open a web socket
+       var ws = new WebSocket("ws://" + host + "/wsd");
+       ws.onopen = function()
+       {};
+       ws.onerror = function(event)
+       {
+	         console.log("Socket error");
+       };
+       ws.onclose = function(event)
+       {
+	        console.log("Socket closed, reason:"+ event.code);
+            console.log(event);
+            setTimeout(function() {WebSocketConnect();}, 1000);
+       };
+       ws.onmessage = function (evt)
+       {
+          if (typeof evt.data === "string")
+          {
+            logElementToConsole(evt.data);
+          }
+       };
+    }
+    else
+    {
+       alert("WebSocket NOT supported by your Browser!");
+    }
+ }
+
+  function logElementToConsole(data) {
+    var span = document.createElement('span');
+    span.innerHTML = data;
+    var p = document.createElement('p');
+    p.style.wordWrap = 'break-word';
+    p.innerHTML = '';
+    p.appendChild(span);
+
+    consoleLog.appendChild(p);
+
+    while (consoleLog.childNodes.length > 5000)
+    {
+      consoleLog.removeChild(consoleLog.firstChild);
+    }
+    consoleLog.scrollTop = consoleLog.scrollHeight;
+  }
+
+  //Read the settings when the web page has completed its loading
+  $(document).ready(function(){
+    consoleLog = document.getElementById('consoleLog');
+    WebSocketConnect();
+    });
+</script>
+</head>
+
+<body style="background-color: #DBDBDB; margin: 0px; background-image: url(images/bg.png);">
+<br>
+<DIV id="echo-log" style="width: 350px; padding-left: 20px; margin-left: 20px;  float: left;">
+<DIV id="consoleLog"></DIV>
+</DIV>
+
+</body>
+</html>

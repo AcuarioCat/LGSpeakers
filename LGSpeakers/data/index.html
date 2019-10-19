@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LG Sound Bar</title>
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.10.4/jquery-ui.min.js"></script>
+<script src="js/bitset.min.js"></script>
+<link type="text/css" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.10.4/themes/smoothness/jquery-ui.css" rel="stylesheet" />
+
+<style>
+#container {
+width:740px;height:300px;
+}
+#tone span {
+height:300px; float:left; margin:5px
+}
+#eq span {
+height:300px; float:left; margin:5px
+}
+#channel1, #channel2, #channel3 span {
+height:300px; width:90px; float:left; margin:1px
+}
+#settings span {
+float:left; margin:5px
+}
+#eqv span {
+height:1px; width:600px; float:left; margin-top: 10px;
+}
+
+input[type=text], select {
+  width: 22px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+</style>
+
+<script>
+var ws;
+var mute = 0;
+
+$(function() {
+  var volume;
+    // setup master volume
+    $( "#master" ).slider({orientation: "horizontal", range: false, min: 0, max: 100,
+      step: 2,
+      slide: function( event, ui ) {
+        volume = $("#master").slider("value");
+        console.log("master=" + volume);
+        $.post("volume",{m:volume});
+        }, animate: true
+    });
+
+    $( "#vol1" ).slider({orientation: "horizontal", range: false, min: 0, max: 100,
+      step: 2,
+      slide: function( event, ui ) {
+        volume = $("#vol1").slider("value");
+        console.log("vol1=" + volume);
+        $.post("volume",{l:volume});
+        },animate: true
+    });
+
+    $( "#vol2" ).slider({orientation: "horizontal", range: false, min: 0, max: 100,
+      step: 2,
+      slide: function( event, ui ) {
+        volume = $("#vol2").slider("value");
+        console.log("vol2=" + volume);
+        $.post("volume",{r:volume});
+        },animate: true
+    });
+
+    $( "#vol3" ).slider({orientation: "horizontal", range: false, min: 0, max: 100,
+      step: 2,
+      slide: function( event, ui ) {
+        volume = $("#vol3").slider("value");
+        console.log("vol3=" + volume);
+        $.post("volume",{w:volume});
+        },animate: true
+    });
+
+    $( "#treble" ).slider({orientation: "vertical", range: false, min: 0, max: 0x1f,
+      slide: function( event, ui ) {
+        volume = $("#treble").slider("value");
+        console.log("treble=" + volume);
+        $("#treblev").val(volume);
+        $.post("volume",{t:volume});
+        },animate: true
+    });
+    $( "#bass" ).slider({orientation: "vertical", range: false, min: 0, max: 0x1f,
+      slide: function( event, ui ) {
+        volume = $("#bass").slider("value");
+        console.log("bass=" + volume);
+        $("#bassv").val(volume);
+        $.post("volume",{b:volume});
+        },animate: true
+    });
+
+    // setup graphic EQ
+    $( "#eq > span" ).each(function() {
+      // read initial values from markup and remove that
+      var eqno = parseInt( $( this ).text(), 10 );
+      $( this ).empty().slider({
+      value: 0,
+      range: false,
+      min: -1, max: 0x100,
+      animate: true,
+      orientation: "vertical",
+      slide: function( event, ui ) {
+        //Get value
+        volume = $("#eq" + eqno).slider("value");
+
+        //Show value in text box
+        $('[name=eqv]').eq(eqno-1).val(volume.toString(16));
+
+        //Select EQ to change from radio buttons
+        var address = "";
+        var selected = $("input[type='radio'][name='eqno']:checked");
+        if (selected.length > 0) {
+            address = selected.val();
+
+        var msg = {e: eqno, v:volume, c:address};
+        console.log(msg);
+        ws.send(JSON.stringify(msg));
+        }
+        $.post("eq",{c:address,e:eqno,v:volume});}
+      });
+    });
+});
+
+$(document).ready(function(){
+   //System control 4
+    $("#setsc4").click(function() {
+        var sc4 = 0 * 1;
+        $('input[name="sc4"]:checked').each(function() {
+            sc4 += (this.value) * 1;
+        });
+        console.log("sc4:"+sc4);
+        $.post("setting",{s:sc4});
+    });
+    $("#reset").click(function(){$.post("setting",{r:1});});
+    $("#reboot").click(function(){$.post("setting",{r:2});});
+    $("#mute").click(function(){
+      if(mute===0){
+        $.post("setting",{m:1});
+        mute = 1;
+        $("#mute").html("UnMute");
+      } else {
+        $.post("setting",{m:0});
+        mute = 0;
+        $("#mute").html("Mute");
+        }
+      });
+    WebSocketConnect();
+});
+
+var host = location.hostname;
+
+function WebSocketConnect()
+{
+    if ("WebSocket" in window)
+    {
+        // Open a web socket
+       //var ws = new WebSocket("ws://" + host + "/ws");
+       ws = new WebSocket("ws://" + host + "/ws");
+       ws.onopen = function()
+       {
+            setTimeout(function() {$.get("settings");}, 300);
+       };
+       ws.onerror = function(event)
+       {
+	         console.log("Socket error");
+       };
+       ws.onclose = function(event)
+       {
+	        console.log("Socket closed, reason:"+ event.code);
+            console.log(event);
+            setTimeout(function() {WebSocketConnect();}, 1000);
+       };
+       ws.onmessage = function (evt)
+       {
+          if (typeof evt.data === "string")
+          {
+            onValueMessage(evt.data);
+          }
+       };
+    }
+    else
+    {
+       alert("WebSocket NOT supported by your Browser!");
+    }
+ }
+
+function onValueMessage(msg) {
+    if (msg.includes("{")) {
+      var obj = JSON.parse(msg);
+      $("#master").slider( "value", obj.master );
+      $("#vol1").slider( "value", obj.ch1 );
+      $("#vol2").slider( "value", obj.ch2 );
+      $("#vol3").slider( "value", obj.ch3 );
+      $("#treble").slider( "value", obj.treble );
+      $("#bass").slider( "value", obj.bass );
+      $("#treblev").val(obj.treble);
+      $("#bassv").val(obj.bass);
+      var sc4 = obj.stateC4 * 1;
+      if(sc4>=0x80){$('#surround').prop('checked', true);sc4=sc4-0x80;}
+      if(sc4>=0x40){$('#basse').prop('checked', true);sc4=sc4-0x40;}
+      if(sc4>=0x20){$('#drc').prop('checked', true);sc4=sc4-0x20;}
+      if(sc4>=0x10){$('#noise').prop('checked', true);sc4=sc4-0x10;}
+      if(sc4>=0x8){$('#eq').prop('checked', true);sc4=sc4-0x8;}
+      if(sc4>=0x4){$('#postscale').prop('checked', true);sc4=sc4-0x4;}
+      if(sc4>=0x2){$('#eqbypass').prop('checked', true);sc4=sc4-0x2;}
+      if(sc4>=0x1){$('#hpf').prop('checked', true);sc4=sc4-0x1;}
+    }
+ }
+</script>
+</head>
+<body>
+<p class="ui-state-default ui-corner-all" style="padding:4px;margin-top:0em;">
+<span class="ui-icon ui-icon-signal" style="float:left; margin:-2px 5px 0 0;"></span>
+Settings
+</p>
+
+<div id="settings">
+    <input type="checkbox" name="sc4" id="surround" value=128>Surround bypass&nbsp;
+    <input type="checkbox" name="sc4" id="basse" value=64>Bass/Treble enable&nbsp;
+    <input type="checkbox" name="sc4" id="drc" value=32>Dual DRC enable&nbsp;
+    <input type="checkbox" name="sc4" id="noise" value=16>Noise gate enable<br>
+    <input type="checkbox" name="sc4" id="eq" value=8>CH2 EQ=CH1 EQ&nbsp;
+    <input type="checkbox" name="sc4" id="postscale" value=4>Use ch1 post-scale&nbsp;
+    <input type="checkbox" name="sc4" id="eqbypass" value=2>EQ bypass&nbsp;
+    <input type="checkbox" name="sc4" id="hpf" value=1>HPF DC bypass<br>
+    <button id="mute" style="width:80px;color:red;">Mute</button>
+    <button id="setsc4">Set SC4</button>
+    <button id="reset">Reset</button>
+    <button id="reboot">Reboot</button>
+</div>
+
+<p class="ui-state-default ui-corner-all ui-helper-clearfix" style="padding:4px;">
+<span class="ui-icon ui-icon-volume-on" style="float:left; margin:-2px 5px 0 0;"></span>
+Master volume
+</p>
+
+<div id="master" style="width:260px; margin:15px;"></div>
+
+<p class="ui-state-default ui-corner-all ui-helper-clearfix" style="padding:4px;">
+<span class="ui-icon ui-icon-volume-on" style="float:left; margin:-2px 5px 0 0;"></span>
+Channel volume
+</p>
+<div id="vol1" style="width:260px; margin:15px;"></div>
+<div id="vol2" style="width:260px; margin:15px;"></div>
+<div id="vol3" style="width:260px; margin:15px;"></div>
+
+<p class="ui-state-default ui-corner-all" style="padding:4px;margin-top:1em;">
+<span class="ui-icon ui-icon-signal" style="float:left; margin:-2px 5px 0 0;"></span>
+Graphic EQ
+</p>
+
+<div id="container">
+<div id="tone">
+<span id="bass"></span>
+<span id="treble"></span>
+<span>&nbsp;</span>
+</div>
+<div id="eq">
+<span id="eq1">1</span>
+<span id="eq2">2</span>
+<span id="eq3">3</span>
+<span id="eq4">4</span>
+<span id="eq5">5</span>
+<span id="eq6">6</span>
+<span id="eq7">7</span>
+<span id="eq8">8</span>
+<span id="eq9">9</span>
+<span id="eq10">10</span>
+<span id="eq11">11</span>
+<span id="eq12">12</span>
+<span id="eq13">13</span>
+<span id="eq14">14</span>
+<span id="eq15">15</span>
+<!--
+<span id="eq16">16</span>
+<span id="eq17">17</span>
+<span id="eq18">18</span>
+<span id="eq19">19</span>
+<span id="eq20">20</span>
+-->
+</div>
+<div id="channel1">
+<input type="radio" value="0" name="eqno" checked/>CH1EQ1
+<input type="radio" value="5" name="eqno"/>CH1EQ2
+<input type="radio" value="10" name="eqno"/>CH1EQ3
+<input type="radio" value="15" name="eqno"/>CH1EQ4
+<input type="radio" value="20" name="eqno"/>CH1EQ5
+<input type="radio" value="25" name="eqno"/>CH1EQ6
+<input type="radio" value="30" name="eqno"/>CH1EQ7
+<input type="radio" value="35" name="eqno"/>CH1EQ8
+</div>
+<div id="channel2">
+<input type="radio" value="50" name="eqno"/>CH2EQ1
+<input type="radio" value="55" name="eqno"/>CH2EQ2
+<input type="radio" value="60" name="eqno"/>CH2EQ3
+<input type="radio" value="65" name="eqno"/>CH2EQ4
+<input type="radio" value="70" name="eqno"/>CH2EQ5
+<input type="radio" value="75" name="eqno"/>CH2EQ6
+<input type="radio" value="80" name="eqno"/>CH2EQ7
+<input type="radio" value="85" name="eqno"/>CH2EQ8
+</div>
+<div id="channel3">
+<input type="radio" value="40" name="eqno"/>CH3EQ1
+<input type="radio" value="45" name="eqno"/>CH3EQ2
+<input type="radio" value="90" name="eqno"/>CH3EQ3
+<input type="radio" value="95" name="eqno"/>CH3EQ4
+</div>
+<div id="eqv">
+<span>
+<input type="text" maxlength="2" name="bassv" id="bassv"></input>
+<input type="text" maxlength="2" name="treblev" id="treblev"></input>
+&nbsp;&nbsp;&nbsp;
+<input type="text" maxlength="2" name="eqv" id="eq1v"></input>
+<input type="text" maxlength="2" name="eqv" id="eq2v"></input>
+<input type="text" maxlength="2" name="eqv" id="eq3v"></input>
+<input type="text" maxlength="2" name="eqv" id="eq4v"></input>
+<input type="text" maxlength="2" name="eqv" id="eq5v"></input>
+<input type="text" maxlength="2" name="eqv" id="eq6v"></input>
+<input type="text" maxlength="2" name="eqv" id="eq7v"></input>
+<input type="text" maxlength="2" name="eqv" id="eq8v"></input>
+<input type="text" maxlength="2" name="eqv" id="eq9v"></input>
+<input type="text" maxlength="2" name="eqv" id="ev10v"></input>
+<input type="text" maxlength="2" name="eqv" id="eq11v"></input>
+<input type="text" maxlength="2" name="eqv" id="eq12v"></input>
+<input type="text" maxlength="2" name="eqv" id="eq13v"></input>
+<input type="text" maxlength="2" name="eqv" id="eq14v"></input>
+<input type="text" maxlength="2" name="eqv" id="eq15v"></input>
+<!--
+<input type="text" maxlength="2" name="eqv" id="eq16v"></input>
+<input type="text" maxlength="2" name="eqv" id="eq17v"></input>
+<input type="text" maxlength="2" name="eqv" id="eq18v"></input>
+<input type="text" maxlength="2" name="eqv" id="eq19v"></input>
+<input type="text" maxlength="2" name="eqv" id="eq20v"></input>
+-->
+</span>
+</div>
+</div>
+</body>
+</html>
