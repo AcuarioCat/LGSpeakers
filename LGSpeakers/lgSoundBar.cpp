@@ -167,15 +167,15 @@ void LgSoundBarClass::setDefault(void) {
 		bitsWritten = write_register(AD835, 0x14, 0x2d);		//CH3EQ3
 		write_register(AD835, 0x15, arr2, sizeof(arr2));
 		bitsWritten = write_register(AD835, 0x24, 0x02);
-
-		//Set Bass Crossover to 400Hz
-		bitsWritten = write_register(AD835, AD_BASSMGMT, 0x08);
-
-		//Set state control 4 register
-		ss.stateC4 = eepromUtil.eeprom_read_byte(E_STATEC4);
-		DEBUG_PRINTF("State control 4:%x\n", ss.stateC4);
-		bitsWritten = write_register(AD835, AD_STATEC4, ss.stateC4);
 	}
+
+	//Set Bass Crossover to 400Hz
+	bitsWritten = write_register(AD835, AD_BASSMGMT, 0x08);
+
+	//Set state control 4 register
+	ss.stateC4 = eepromUtil.eeprom_read_byte(E_STATEC4);
+	//DEBUG_PRINTF("State control 4:%x\n", ss.stateC4);
+	bitsWritten = write_register(AD835, AD_STATEC4, ss.stateC4);
 
 	//Set Bass and Treble to values saved in eeprom
 	setVolumeBT(AD_BASS);
