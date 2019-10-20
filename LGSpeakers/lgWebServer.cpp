@@ -126,34 +126,28 @@ void setupWebServer()
 			byte eqno;
 			byte address;
 			int setting;
-			if ((request->hasArg("e")))
+			if ((request->hasArg("z")))
 			{
 				address = (int)request->arg("c").toInt();
-				eqno = (int)request->arg("e").toInt();
-				setting = (int)request->arg("v").toInt();
-				DEBUG_PRINTF("eq %d, val %x\n", eqno, setting);
+				String str = request->arg("z");
+				DEBUG_PRINTF("eq %d, val %s\n", address, str.c_str());
+
+				const size_t capacity = JSON_ARRAY_SIZE(15) + JSON_OBJECT_SIZE(1) + 10;
+				DynamicJsonDocument doc(capacity);
+				deserializeJson(doc, str);
+
+				//Copy data to array
+				JsonArray data = doc["data"];
+				for (byte b = 0; b < 16; b++)
+					arr[b] = data[b];
+
 
 				LgSb.mute();
-
-				//Write a single coefficient
+				//Write coefficient
 				LgSb.write_register(AD835, 0x14, address);
-				arr[eqno - 1] = setting;
 				LgSb.write_register(AD835, 0x15, arr, sizeof(arr));
-				LgSb.write_register(AD835, 0x24, 0x01);
-
-				//write_register(AD835, 0x14, eqno);
-				//write_register(AD835, 0x15, setting);
-				//write_register(AD835, 0x16, setting<<8);
-				//write_register(AD835, 0x17, setting<<16);
-				//write_register(AD835, 0x24, 0x01);
-				LgSb.setVolumeBT(AD_MASTERVOL);
-
-				//arr[0] = setting;
-				//arr[1] = setting << 8;
-				//arr[2] = setting << 16;
-				//write_register(AD835, 0x14, address);
-				//write_register(AD835, 0x15, arr, sizeof(arr));
-				//write_register(AD835, 0x24, 0x02);
+				LgSb.write_register(AD835, 0x24, 0x02);
+				LgSb.unMute();
 			}
 		}
 		request->send(200);
@@ -211,10 +205,15 @@ void setupWebServer()
 			if ((request->hasArg("m")))
 			{
 				setting = (int)request->arg("m").toInt();
-				if(setting == 1)
+				if(setting == 1){
+					ss.bMute = true;
 					LgSb.mute();
+				}
 				else
+				{
 					LgSb.unMute();
+					ss.bMute = false;
+				}
 			}
 			if ((request->hasArg("s")))
 			{

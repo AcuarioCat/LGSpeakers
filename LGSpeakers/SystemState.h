@@ -24,6 +24,8 @@ class SystemState
 
 	//Dynamic variables
 	bool shouldReboot = false;
+	bool bMute = false;
+	bool bResetVol = false;
 
 	//LG Sound bar values
 	byte masterVolume = 0;

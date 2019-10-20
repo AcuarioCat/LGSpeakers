@@ -6,6 +6,7 @@
 #include "lgSoundBar.h"
 #include <Arduino.h>
 #include <Wire.h>
+#include <Ticker.h>
 #include "LGSpeakers.h"
 #include "lgWebServer.h"
 #include "SystemState.h"
@@ -15,6 +16,13 @@
 const char* ssid = "Terrapico";
 const char* password = "5432167890";
 const char* hostName = "LGSoundBar";
+
+unsigned long last_loop;
+Ticker tickerOSWatch, tickerReset;
+
+//When power off/on values aren't reestablished so force a reset of the values
+void resetVolumes(void) { ss.bResetVol = true; ss.bReset = true;
+}
 
 // the setup function runs once when you press reset or power the board
 void setup() {
@@ -47,15 +55,23 @@ void setup() {
 	//DEBUG_PRINTF("Vol 1: %d\n", res); 
 	//res = read_register(EEPR, E_VOL2);
 	//DEBUG_PRINTF("Vol 2: %d\n", res);
+	//Set up watchdog timer
+
+	DEBUG_PRINTLN(G("Setup watchdog"));
+	last_loop = millis();
+	tickerOSWatch.attach_ms(((OSWATCH_RESET_TIME / 3) * 1000), osWatch);
+	tickerReset.attach(1, resetVolumes);
 }
 
 // the loop function runs over and over again until power down or reset
 void loop() {
 	ArduinoOTA.handle();
 
-	if (ss.bReset) {
+	last_loop = millis();
+	if (ss.bReset && !ss.bMute) {
 		LgSb.setDefault();
 		ss.bReset = false;
+		ss.bResetVol = false;
 	}
 
 	if (ss.shouldReboot) {
@@ -65,4 +81,16 @@ void loop() {
 	}
 	
 	delay(100);
+}
+
+///////////////////////////////////////////////////////////////////////////////////
+// Heartbeat task - resetting the watchdog timer periodically 
+void ICACHE_RAM_ATTR osWatch(void) {
+	unsigned long t = millis();
+	unsigned long last_run = abs(t - last_loop);
+	if (last_run >= (OSWATCH_RESET_TIME * 1000)) {
+		// save the hit here to eeprom or to rtc memory if needed
+		ESP.restart();  // normal reboot 
+		//ESP.reset();  // hard reset
+	}
 }

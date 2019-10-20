@@ -27,6 +27,8 @@
 #define E_TREBLE		0x05		//Treble setting
 #define E_STATEC4		0x06		//State control 4
 
+constexpr auto OSWATCH_RESET_TIME = 300;
+
 static const char* ssdpTemplate =
 "<?xml version=\"1.0\"?>"
 "<root xmlns=\"urn:schemas-upnp-org:device-1-0\">"

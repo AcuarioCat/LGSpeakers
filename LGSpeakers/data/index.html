@@ -37,7 +37,7 @@ input[type=text], select {
 </style>
 
 <script>
-var ws;
+var ws;             //For web socket
 var mute = 0;
 
 $(function() {
@@ -113,6 +113,7 @@ $(function() {
         //Show value in text box
         $('[name=eqv]').eq(eqno-1).val(volume.toString(16));
 
+/*
         //Select EQ to change from radio buttons
         var address = "";
         var selected = $("input[type='radio'][name='eqno']:checked");
@@ -121,9 +122,11 @@ $(function() {
 
         var msg = {e: eqno, v:volume, c:address};
         console.log(msg);
-        ws.send(JSON.stringify(msg));
+        //ws.send(JSON.stringify(msg));
         }
-        $.post("eq",{c:address,e:eqno,v:volume});}
+*/
+        //$.post("eq",{c:address,e:eqno,v:volume});
+        }
       });
     });
 });
@@ -151,8 +154,53 @@ $(document).ready(function(){
         $("#mute").html("Mute");
         }
       });
+
+    //Pre configured coefficients
+    var coeff1 = [00, 00, 0x0, 00, 00, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x20, 00, 0x0];
+    var coeff2 = [00, 00, 0x90, 00, 00, 0x48, 0x3f, 0x76, 0x28, 0xe0, 0x88, 0xb7, 00, 00, 0x48];
+    var coeff3 = [0xc0, 0x33, 0x9f, 0x1f, 0xc2, 0x01, 0x3f, 0xcc, 0x61, 0xe0, 0x33, 0x65, 0x20, 0x0a, 0x99];
+    var coeff4 = [0xc0, 0x26, 0x41, 0x1f, 0xec, 0xdf, 0x3f, 0xd9, 0xb4, 0xe0, 0x26, 0x35, 0x1f, 0xec, 0xdf];
+    var coeff5 = [0xc0, 0x1b, 0x26,0x1f,0xdf,0x67,0x3f,0xe4,0xda,0xe0,0x1b,0x06,0x20,0x05,0x92];
+    var coeff6 = [0xc0,0x19,0xa4,0x1f,0xdf,0x06,0x3f,0xe6,0x5c,0xe0,0x19,0x84,0x20,0x07,0x76];
+    var coeff7 = [0xc0, 0xb1, 0x23, 0x1f, 0x4f, 0x36, 0x3f, 0x4e, 0xdd, 0xe0, 0xb0, 0xca, 0x20, 0x00, 0x00];
+    var coeff8 = [0xc0, 0x32, 0xd0, 0x1f, 0xca, 0x76, 0x3f, 0xcd, 0x30, 0xe0, 0x32, 0x76, 0x20, 0x03, 0x14];
+    var coeff9 = [0xc0, 0x51, 0x15, 0x1f, 0xb3, 0xa8, 0x3f, 0xae, 0xeb, 0xe0, 0x50, 0xbc, 0x1f, 0xfb, 0x9c];
+    $("#c1").click(function(){setCoeff(coeff1);});
+    $("#c2").click(function(){setCoeff(coeff2);});
+    $("#c3").click(function(){setCoeff(coeff3);});
+    $("#c4").click(function(){setCoeff(coeff4);});
+    $("#c5").click(function(){setCoeff(coeff5);});
+    $("#c6").click(function(){setCoeff(coeff6);});
+    $("#c7").click(function(){setCoeff(coeff7);});
+    $("#c8").click(function(){setCoeff(coeff8);});
+    $("#c9").click(function(){setCoeff(coeff9);});
+
+    $("#apply").click(function(){
+        var coeff = [];
+        for(var eqno = 1; eqno < 16; eqno++){
+            coeff[eqno-1] = parseInt($('[name=eqv]').eq(eqno-1).val(), 16);
+        }
+        var data = {data:coeff};
+        var json= JSON.stringify(data);
+        console.log("coeff=" + json);
+
+        //Select EQ to change from radio buttons
+        var address = "";
+        var selected = $("input[type='radio'][name='eqno']:checked");
+        if (selected.length > 0) {
+            address = selected.val();
+        }
+        $.post("eq", {c:address,z:json});
+        });
     WebSocketConnect();
 });
+
+function setCoeff(coeff){
+    for(var eqno = 1; eqno < 16; eqno++){
+        $('[name=eqv]').eq(eqno-1).val(coeff[eqno-1].toString(16));
+        $("#eq" + eqno).slider("value", coeff[eqno-1]);
+    }
+}
 
 var host = location.hostname;
 
@@ -160,8 +208,7 @@ function WebSocketConnect()
 {
     if ("WebSocket" in window)
     {
-        // Open a web socket
-       //var ws = new WebSocket("ws://" + host + "/ws");
+       // Open a web socket
        ws = new WebSocket("ws://" + host + "/ws");
        ws.onopen = function()
        {
@@ -278,13 +325,6 @@ Graphic EQ
 <span id="eq13">13</span>
 <span id="eq14">14</span>
 <span id="eq15">15</span>
-<!--
-<span id="eq16">16</span>
-<span id="eq17">17</span>
-<span id="eq18">18</span>
-<span id="eq19">19</span>
-<span id="eq20">20</span>
--->
 </div>
 <div id="channel1">
 <input type="radio" value="0" name="eqno" checked/>CH1EQ1
@@ -312,6 +352,7 @@ Graphic EQ
 <input type="radio" value="90" name="eqno"/>CH3EQ3
 <input type="radio" value="95" name="eqno"/>CH3EQ4
 </div>
+
 <div id="eqv">
 <span>
 <input type="text" maxlength="2" name="bassv" id="bassv"></input>
@@ -332,14 +373,19 @@ Graphic EQ
 <input type="text" maxlength="2" name="eqv" id="eq13v"></input>
 <input type="text" maxlength="2" name="eqv" id="eq14v"></input>
 <input type="text" maxlength="2" name="eqv" id="eq15v"></input>
-<!--
-<input type="text" maxlength="2" name="eqv" id="eq16v"></input>
-<input type="text" maxlength="2" name="eqv" id="eq17v"></input>
-<input type="text" maxlength="2" name="eqv" id="eq18v"></input>
-<input type="text" maxlength="2" name="eqv" id="eq19v"></input>
-<input type="text" maxlength="2" name="eqv" id="eq20v"></input>
--->
 </span>
+</div>
+<div id="coefficients">
+    <button id="c1">Coefficient 1</button>
+    <button id="c2">Coefficient 2</button>
+    <button id="c3">Coefficient 3</button>
+    <button id="c4">Coefficient 4</button>
+    <button id="c5">Coefficient 5</button>
+    <button id="c6">Coefficient 6</button>
+    <button id="c7">Coefficient 7</button>
+    <button id="c8">Coefficient 8</button>
+    <button id="c9">Coefficient 9</button>
+    <button id="apply" style="width:110px;color:red;">Apply</button>
 </div>
 </div>
 </body>
