@@ -280,7 +280,7 @@ void sendWsMessage(String message, String key) {
 
 void setupOTAUpdate(void)
 {
-	ArduinoOTA.setPassword((const char *)"j3ss1camLG");
+	ArduinoOTA.setPassword((const char *)"<your password for OTA>");
 
 	ArduinoOTA.onStart([]() {
 		//LcdDisplay.setBacklight(true);
